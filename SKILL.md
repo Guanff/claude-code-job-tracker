@@ -214,71 +214,39 @@ Cap at max 3 explore items per batch.
 
 ### Step 4: Create Push Document + IM Notification
 
-**4a — Generate Rich Document via `docx_builtin_import`**
+Delegate to **feishu.skill** for document creation and writing.
 
-Import a markdown document with full content. Title: "岗位推送 YYYY-MM-DD".
+**4a — Build document content in Python**
 
-Document structure:
-```
-# 📋 岗位推送 2026-05-04
+Generate a formatted markdown-like structure for the push report:
+- emoji headings (H1/H2)
+- Bold company names in bullet lists
+- Job listings, industry news, skill analysis sections
+- Links to bitable and external sources
 
-## 🎯 精准匹配 (X个)
-| 公司 | 岗位 | 城市 | 薪资 | 截止 | 链接 |
-|------|------|------|------|------|------|
-| ... | ... | ... | ... | ... | ... |
+**4b — Create wiki doc via feishu.skill**
 
-## 🔍 探索推荐 (X个)
-| 公司 | 岗位 | 城市 | 匹配理由 |
-|------|------|------|---------|
-| ... | ... | ... | ... |
+Call feishu.skill workflow:
+1. Locate target folder: space_id=7635789242190269391, parent_node_token=K5JAwbeviiCuO5karpSczcVcn5c (岗位推送)
+2. Create empty wiki node: wiki_v2_spaceNode_create
+3. Fill content: Python Block API (text blocks with bold, bullet, links, emoji)
+4. Grant permission: drive_v1_permissionMember_create(full_access for ou_6f718…)
 
-## 🏭 行业洞察
-- 本周机器人/工控行业的重大新闻
-- 值得关注的融资/上市/产品发布
-- 政策动态（低空经济/智能制造/具身智能）
+**Important constraints from feishu.skill:**
+- Always use Python for Block API — bash corrupts Chinese text
+- Bullet lists: use text block_type=2 + style.list.type='bullet' (NOT block_type=9)
+- Divider block_type=19 NOT supported
+- Company names: use bold text_style for visual emphasis
+- Separator: use blank text blocks between sections
 
-## 📐 技能剖析
-- 本期高频要求的技能点
-- 你目前掌握程度 vs 岗位要求的差距
-- 推荐学习资源
+**4c — Write Summary Records to Bitable**
 
-## 🇪🇺 外企机会
-- 广东外企校招动态
-- WLB分析
-```
+Write new positions to the bitable  as before (see Step 3).
 
-Use `docx_builtin_import` → returns `{token, url}`.
+**4d — Push IM Notification**
 
-Then add the docx as a child shortcut under the wiki node:
-```
-wiki_v2_spaceNode_create(
-  space_id: 7441869923686187036,
-  parent_node_token: Gipew5Zisi1Oa3kn35ScViz7nHf,
-  obj_type: docx,
-  node_type: shortcut,
-  origin_node_token: {imported_doc_token},
-  title: "岗位推送 2026-05-04"
-)
-```
+Send to Feishu chat via im_v1_message_create:
 
-Grant user edit permission on the new docx via `drive_v1_permissionMember_create`.
-
-**4b — Write Summary Records to Bitable**
-
-Write new positions to the bitable as before (see Step 3).
-
-**4c — Push IM Notification**
-
-Send to Feishu chat:
-```
-📋 岗位推送 {date}
-
-🎯 精准 {core_count} | 🔍 探索 {explore_count} | 🇪🇺 外企 {foreign_count}
-
-📄 完整报告：{docx_url}
-
-⭐ 反馈：回复 "评分" 对这批岗位打分(1-5)
-```
 
 ### Step 5: Process Feedback (Async)
 
