@@ -20,6 +20,9 @@ allowed-tools:
   - mcp__feishu__bitable_v1_appTableRecord_search
   - mcp__feishu__bitable_v1_appTableRecord_update
   - mcp__feishu__im_v1_message_create
+  - mcp__feishu__docx_builtin_import
+  - mcp__feishu__wiki_v2_spaceNode_create
+  - mcp__feishu__drive_v1_permissionMember_create
   - mcp__tavily__tavily_search
   - mcp__fetch__fetch
   - mcp__playwright__browser_navigate
@@ -209,24 +212,72 @@ Cap at max 3 explore items per batch.
    - Score 40-69 → 中
    - Score < 40 → 低
 
-### Step 4: Push Summary with Rating Prompt
+### Step 4: Create Push Document + IM Notification
 
-Send to Feishu chat via im_v1_message_create:
+**4a — Generate Rich Document via `docx_builtin_import`**
 
+Import a markdown document with full content. Title: "岗位推送 YYYY-MM-DD".
+
+Document structure:
 ```
-📋 岗位更新 {date}
+# 📋 岗位推送 2026-05-04
 
-🎯 精准匹配 {core_count} 个：
-• {Company} — {Role} ({City}) | 匹配度:高 | 截止:{deadline}
-• ...
+## 🎯 精准匹配 (X个)
+| 公司 | 岗位 | 城市 | 薪资 | 截止 | 链接 |
+|------|------|------|------|------|------|
+| ... | ... | ... | ... | ... | ... |
 
-🔍 探索推荐 {explore_count} 个：
-• {Company} — {Role} ({City}) | 匹配度:中
-• ...
+## 🔍 探索推荐 (X个)
+| 公司 | 岗位 | 城市 | 匹配理由 |
+|------|------|------|---------|
+| ... | ... | ... | ... |
 
-📊 完整列表：{bitable URL}
+## 🏭 行业洞察
+- 本周机器人/工控行业的重大新闻
+- 值得关注的融资/上市/产品发布
+- 政策动态（低空经济/智能制造/具身智能）
 
-⭐ 反馈：回复 "评分" 对这批岗位打分(1-5)，帮助我优化推荐
+## 📐 技能剖析
+- 本期高频要求的技能点
+- 你目前掌握程度 vs 岗位要求的差距
+- 推荐学习资源
+
+## 🇪🇺 外企机会
+- 广东外企校招动态
+- WLB分析
+```
+
+Use `docx_builtin_import` → returns `{token, url}`.
+
+Then add the docx as a child shortcut under the wiki node:
+```
+wiki_v2_spaceNode_create(
+  space_id: 7441869923686187036,
+  parent_node_token: Gipew5Zisi1Oa3kn35ScViz7nHf,
+  obj_type: docx,
+  node_type: shortcut,
+  origin_node_token: {imported_doc_token},
+  title: "岗位推送 2026-05-04"
+)
+```
+
+Grant user edit permission on the new docx via `drive_v1_permissionMember_create`.
+
+**4b — Write Summary Records to Bitable**
+
+Write new positions to the bitable as before (see Step 3).
+
+**4c — Push IM Notification**
+
+Send to Feishu chat:
+```
+📋 岗位推送 {date}
+
+🎯 精准 {core_count} | 🔍 探索 {explore_count} | 🇪🇺 外企 {foreign_count}
+
+📄 完整报告：{docx_url}
+
+⭐ 反馈：回复 "评分" 对这批岗位打分(1-5)
 ```
 
 ### Step 5: Process Feedback (Async)
